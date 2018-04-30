@@ -1,0 +1,161 @@
+---
+title: 'Practical Machine Learning Course Project'
+author: "AK"
+date: "April 29, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Prediction of the manner in which 6 participants did the Dumbbell Biceps Curl 
+
+## Assignment
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to develop a model to predict the manner in which they did the Dumbbell Biceps Curl. Are they doing it correctly according to the specifications ?
+
+1.  Class A: According to the specifications 
+2.  Class B: throwing the elbows to the front  
+3.  Class C: lifting the dumbbell only halfway  
+4.  Class D: lowering the dumbbell only halfway  
+5.  Class E: throwing the hips to the front 
+
+## Synopsis
+
+The objective of this exercise is to develop a model to predict the manner in which 6 participants did the Dumbbell Biceps Curl. Are they doing it in according to the specifications ?  
+
+The dataset which I use was extracted from http://groupware.les.inf.puc-rio.br/har.  The training file contains 19622 observations and 160 varialbles.  To increase the accruacy of the forecast model, preprocessing is required to exclude all columns containing (01) 60% or more NA and (02) Near Zero variance.  Furthermore subsetting the training data set to 2 sets: Training and Cross-Validation to assess the accuracy of the models.  
+
+### Conclusion - Selection of Model:
+
+I am testing 2 methods:  RandomForest vs Rpart (Recursive partitioning for classification)
+
+My analysis shows that RandomForest Model has a much higher accuracy than Rpart model in both Training and Out of Sample (cross validation) predictions. 
+
+Training Set Accuracy Rates:
+
+RandomForest:  1
+Rpart: 0.4979298
+
+Cross Validation Set Accuracy Rates:
+
+RandomForest: 0.9964313
+Rpart: 0.4863625
+
+For RandomForest Model, the out of sample (cross validation) accuracy rate is very close to the training rate.  This shows that the model behaves consistently.
+
+RandomForest Training Accuracy Rate:  1\  
+RandomForest Out of Sample (Cross Validation) Accuracy Rate: 0.9964313.  The error rate is 0.004
+
+### Results for Test Quiz
+
+The forecast of the test set match the results in the quiz section.
+
+print(predict(modrf,newdata=testing))\  
+
+  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20\     
+  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+
+## Loading and Processing of Data
+
+Training Data Source: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+Testing Data Source: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+Training Data File has 19622 observations and 160 varialbles
+
+### Loading of required packages and the datasets
+
+```{r dataloading, echo=TRUE}
+
+# Loading required packages
+
+library(caret)
+library(randomForest)
+
+# Loading data sets
+temp<-tempfile()
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", temp)
+train<-read.csv(temp)
+temp<-tempfile()
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", temp)
+testing<-read.csv(temp)
+
+# Subset the train dataset to 2 subsets: Train and Validation
+
+set.seed(34567)
+intrain<-createDataPartition(train$classe,p=0.8,list=FALSE)
+train1<-train[intrain,]
+validation<-train[-intrain,]
+
+dim(train)
+dim(train1)
+dim(validation)
+
+```
+
+### Pre-processing - Exclude all columns containing (01) 60% or more NA/"" and (02) Near Zero variance.  Furthermore exclude certain columns that do not appear to contribute the model. 
+
+```{r datapreprocessing, echo=TRUE}
+
+# Near Zero Variance COlumns
+
+nearzero<-nearZeroVar(train1)
+train1<-train1[,-nearzero]
+
+# Columns containing 60% or more NA or ""
+
+training<- train1[,!(colSums(is.na(train1)|train1=="")/nrow(train1)>.6)]
+
+# Exclude columns that do not appear to contribute to the model.
+
+training<-training[,!names(training) %in% c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window")]
+
+```
+
+## Model Selection
+
+### Modeling
+
+```{r modeling, echo=TRUE}
+
+# RandomForest
+
+modrf<-randomForest(classe~.,data=training,importance=TRUE,prox=FALSE,ntrees=10)
+
+# rpart
+
+modrpart<-train(classe~.,data=training, method="rpart")
+
+```
+
+### Selection
+
+```{r modelselection, echo=TRUE}
+
+# randomforest
+
+confusionMatrix(predict(modrf,newdata=training),training$classe)
+confusionMatrix(predict(modrf,newdata=validation),validation$classe)
+
+confusionMatrix(predict(modrf,newdata=training),training$classe)$overall["Accuracy"]
+confusionMatrix(predict(modrf,newdata=validation),validation$classe)$overall["Accuracy"]
+
+# rpart
+
+confusionMatrix(predict(modrpart,newdata=training),training$classe)
+confusionMatrix(predict(modrpart,newdata=validation),validation$classe)
+
+confusionMatrix(predict(modrpart,newdata=training),training$classe)$overall["Accuracy"]
+confusionMatrix(predict(modrpart,newdata=validation),validation$classe)$overall["Accuracy"]
+
+```
+
+# Prediction for the test quiz
+
+```{r simplelinearregression, echo=TRUE}
+
+print(predict(modrf,newdata=testing))
+
+```
